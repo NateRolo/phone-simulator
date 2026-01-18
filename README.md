@@ -1,6 +1,6 @@
-# Fake Call - Emergency Escape App
+# You Good? - Your Discreet Exit Strategy
 
-A realistic fake phone call simulator to help you escape awkward situations. Features an AI-powered "Mom" who calls with an urgent emergency, complete with voice synthesis.
+A realistic fake phone call simulator to help you gracefully exit any situation. Features AI-powered callers (parents, siblings, work) with urgent emergencies, complete with voice synthesis and natural conversation.
 
 ## Features
 

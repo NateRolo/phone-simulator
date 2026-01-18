@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneOff } from 'lucide-react';
 import { PhoneFrame } from './PhoneFrame';
 import { SetupMenu } from './SetupMenu';
+import { QuickLaunch } from './QuickLaunch';
 import { FakeHomeScreen } from './FakeHomeScreen';
 import { CallScreen } from './CallScreen';
 import { ConversationView } from './ConversationView';
@@ -13,7 +14,10 @@ import { WaveformVisualizer } from './WaveformVisualizer';
 import { PinEntryModal } from './PinEntryModal';
 import { useConversation } from '@/hooks/useConversation';
 import { useAutoRecorder } from '@/hooks/useAutoRecorder';
-import { AppConfig, AppPhase, MAX_CALLS_HIGH_INTENSITY, DELAY_BETWEEN_CALLS_MS } from '@/types/appConfig';
+import { useSavedPlans } from '@/hooks/useSavedPlans';
+import { useRingtone } from '@/hooks/useRingtone';
+import { AppConfig, AppPhase, SavedPlan, MAX_CALLS_HIGH_INTENSITY, DELAY_BETWEEN_CALLS_MS } from '@/types/appConfig';
+import { defaultRingtone } from '@/config/ringtones';
 
 const RECORDING_DURATION = 4000;
 
@@ -30,15 +34,27 @@ export function PhoneSimulator() {
     fetchVoices,
     triggerRinging,
     answerCall,
+    sendInitialGreeting,
     endCall,
     resetToIdle,
     sendMessage,
   } = useConversation();
 
-  const [showApp, setShowApp] = useState(false);
+  // Saved plans
+  const { plans, isLoaded: plansLoaded, savePlan, markPlanUsed, deletePlan } = useSavedPlans();
   
-  // App-level state
-  const [appPhase, setAppPhase] = useState<AppPhase>('setup');
+  // Ringtone
+  const { 
+    selectedRingtoneId, 
+    setSelectedRingtoneId, 
+    isPlaying: isRingtonePlaying,
+    play: playRingtone, 
+    stop: stopRingtone,
+    previewRingtone,
+  } = useRingtone();
+  
+  // App-level state - start with quick-launch if there are saved plans
+  const [appPhase, setAppPhase] = useState<AppPhase>('quick-launch');
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [timerSecondsLeft, setTimerSecondsLeft] = useState<number | null>(null);
   const [callCount, setCallCount] = useState(0);
@@ -59,18 +75,47 @@ export function PhoneSimulator() {
     setConfig(newConfig);
     setSelectedScenario(newConfig.scenarioId);
     setCustomCallerName(newConfig.customCallerName);
+    setSelectedRingtoneId(newConfig.ringtoneId || defaultRingtone);
     setCallCount(0);
     
     if (newConfig.timerSeconds === null || newConfig.timerSeconds === 0) {
       // Instant call
       setAppPhase('ringing');
       triggerRinging();
+      playRingtone();
     } else {
       // Start timer
       setAppPhase('waiting');
       setTimerSecondsLeft(newConfig.timerSeconds);
     }
-  }, [setSelectedScenario, setCustomCallerName, triggerRinging]);
+  }, [setSelectedScenario, setCustomCallerName, setSelectedRingtoneId, triggerRinging, playRingtone]);
+
+  // Handle launching a saved plan
+  const handleLaunchPlan = useCallback((plan: SavedPlan) => {
+    // Mark the plan as used
+    markPlanUsed(plan.id);
+    
+    // Set the voice
+    setSelectedVoice(plan.voiceId);
+    
+    // Create config from plan
+    const planConfig: AppConfig = {
+      timerSeconds: plan.timerSeconds === 0 ? null : plan.timerSeconds,
+      intensity: plan.intensity,
+      safePin: plan.safePin,
+      scenarioId: plan.scenarioId,
+      customCallerName: plan.customCallerName,
+      ringtoneId: plan.ringtoneId || defaultRingtone,
+      planName: plan.name,
+    };
+    
+    handleSetupComplete(planConfig);
+  }, [markPlanUsed, setSelectedVoice, handleSetupComplete]);
+
+  // Handle saving a new plan
+  const handleSavePlan = useCallback((planData: Omit<SavedPlan, 'id' | 'createdAt'>) => {
+    savePlan(planData);
+  }, [savePlan]);
 
   // Timer countdown
   useEffect(() => {
@@ -79,6 +124,7 @@ export function PhoneSimulator() {
     if (timerSecondsLeft <= 0) {
       setAppPhase('ringing');
       triggerRinging();
+      playRingtone();
       return;
     }
 
@@ -89,7 +135,7 @@ export function PhoneSimulator() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [appPhase, timerSecondsLeft, triggerRinging]);
+  }, [appPhase, timerSecondsLeft, triggerRinging, playRingtone]);
 
   // Sync app phase with conversation state
   useEffect(() => {
@@ -100,29 +146,37 @@ export function PhoneSimulator() {
 
   // Handle answer
   const handleAnswer = useCallback(() => {
+    stopRingtone();
     setCallCount(prev => prev + 1);
     answerCall();
     setAppPhase('connected');
-  }, [answerCall]);
+    
+    // AI speaks first with a greeting
+    setTimeout(() => {
+      sendInitialGreeting();
+    }, 500); // Small delay for smooth transition
+  }, [stopRingtone, answerCall, sendInitialGreeting]);
 
   // Handle decline (in high intensity, triggers new call)
   const handleDecline = useCallback(() => {
     if (!config) return;
     
+    stopRingtone();
     resetToIdle();
     
     if (config.intensity === 'high' && callCount < MAX_CALLS_HIGH_INTENSITY) {
       // Schedule next call
       nextCallTimerRef.current = setTimeout(() => {
         triggerRinging();
+        playRingtone();
         setAppPhase('ringing');
       }, DELAY_BETWEEN_CALLS_MS);
     } else {
-      // Single call mode or max calls reached - back to setup
-      setAppPhase('setup');
+      // Single call mode or max calls reached - back to quick launch
+      setAppPhase('quick-launch');
       setConfig(null);
     }
-  }, [config, callCount, resetToIdle, triggerRinging]);
+  }, [config, callCount, stopRingtone, resetToIdle, triggerRinging, playRingtone]);
 
   // Handle end call
   const handleEndCall = useCallback(() => {
@@ -135,17 +189,18 @@ export function PhoneSimulator() {
       nextCallTimerRef.current = setTimeout(() => {
         resetToIdle();
         triggerRinging();
+        playRingtone();
         setAppPhase('ringing');
       }, DELAY_BETWEEN_CALLS_MS);
     } else {
       // Single call or max reached
       setTimeout(() => {
-        setAppPhase('setup');
+        setAppPhase('quick-launch');
         setConfig(null);
         resetToIdle();
       }, 2000);
     }
-  }, [config, callCount, endCall, resetToIdle, triggerRinging]);
+  }, [config, callCount, endCall, resetToIdle, triggerRinging, playRingtone]);
 
   // Handle emergency override (hidden button on caller name)
   const handleEmergencyOverride = useCallback(() => {
@@ -153,17 +208,18 @@ export function PhoneSimulator() {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (nextCallTimerRef.current) clearTimeout(nextCallTimerRef.current);
     
+    stopRingtone();
     resetToIdle();
-    setAppPhase('setup');
+    setAppPhase('quick-launch');
     setConfig(null);
     setCallCount(0);
     setShowPinModal(false);
-  }, [resetToIdle]);
+  }, [stopRingtone, resetToIdle]);
 
   // Cancel waiting timer
   const handleCancelWaiting = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    setAppPhase('setup');
+    setAppPhase('quick-launch');
     setConfig(null);
     setTimerSecondsLeft(null);
   }, []);
@@ -179,7 +235,7 @@ export function PhoneSimulator() {
     if (nextCallTimerRef.current) clearTimeout(nextCallTimerRef.current);
     
     resetToIdle();
-    setAppPhase('setup');
+    setAppPhase('quick-launch');
     setConfig(null);
     setCallCount(0);
   }, [resetToIdle]);
@@ -244,15 +300,31 @@ export function PhoneSimulator() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Render quick launch screen
+  if (appPhase === 'quick-launch') {
+    return (
+      <QuickLaunch
+        plans={plans}
+        onLaunchPlan={handleLaunchPlan}
+        onDeletePlan={deletePlan}
+        onCreateNew={() => setAppPhase('setup')}
+      />
+    );
+  }
+
   // Render setup menu (full screen, no phone frame)
   if (appPhase === 'setup') {
     return (
       <SetupMenu
         onStart={handleSetupComplete}
+        onSavePlan={handleSavePlan}
+        onBack={() => setAppPhase('quick-launch')}
         voices={voices}
         selectedVoice={selectedVoice}
         onSelectVoice={setSelectedVoice}
         isLoadingVoices={isLoadingVoices}
+        hasSavedPlans={plans.length > 0}
+        onPreviewRingtone={previewRingtone}
       />
     );
   }

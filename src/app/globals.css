@@ -3,13 +3,19 @@
 :root {
   --color-bg-dark: #0a0a0f;
   --color-bg-phone: #1a1a24;
-  --color-accent: #00ff88;
-  --color-accent-dim: #00cc6a;
-  --color-caller: #ff6b6b;
-  --color-receiver: #4ecdc4;
+  --color-accent: #34c759;
+  --color-accent-dim: #30b350;
+  --color-caller: #ff3b30;
+  --color-receiver: #34c759;
   --color-text-primary: #ffffff;
-  --color-text-secondary: #888899;
-  --color-border: #2a2a3a;
+  --color-text-secondary: #8e8e93;
+  --color-border: #38383a;
+  
+  /* iOS Purple Gradient Colors */
+  --ios-purple-start: #667eea;
+  --ios-purple-mid: #9b7fd4;
+  --ios-purple-end: #c084c5;
+  --ios-pink-end: #e091c5;
 }
 
 * {
@@ -100,6 +106,60 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* iOS Purple Gradient Background */
+.ios-gradient {
+  background: linear-gradient(
+    180deg,
+    #5c6bc0 0%,
+    #7e57c2 25%,
+    #9575cd 50%,
+    #ab79b8 75%,
+    #ce93d8 100%
+  );
+}
+
+/* iOS Glass Button */
+.ios-glass-button {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* iOS Settings Card */
+.ios-card {
+  background: #1c1c1e;
+  border-radius: 12px;
+}
+
+/* iOS Settings Row */
+.ios-row {
+  background: #2c2c2e;
+  border-bottom: 0.5px solid #38383a;
+}
+
+.ios-row:first-child {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.ios-row:last-child {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  border-bottom: none;
+}
+
+/* iOS Numeric Keypad Button */
+.ios-keypad-button {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 0.1s ease;
+}
+
+.ios-keypad-button:active {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 /* Gradient text */

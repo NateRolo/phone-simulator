@@ -11,17 +11,33 @@ export interface AppConfig {
   safePin: string;
   scenarioId: string;
   customCallerName: string;
+  ringtoneId: string;
   planName?: string;
 }
 
+export interface SavedPlan {
+  id: string;
+  name: string;
+  scenarioId: string;
+  customCallerName: string;
+  voiceId: string;
+  ringtoneId: string;
+  timerSeconds: number;
+  intensity: IntensityLevel;
+  safePin: string;
+  createdAt: number;
+  lastUsedAt?: number;
+}
+
 export type AppPhase = 
-  | 'setup'      // User configuring settings
-  | 'waiting'    // Fake home screen, waiting for timer
-  | 'ringing'    // Incoming call
-  | 'connected'  // In call
-  | 'ended'      // Call just ended (brief state before next action)
-  | 'pin-entry'  // Entering safe PIN to exit high intensity mode
-  | 'safe';      // Successfully exited with PIN
+  | 'quick-launch' // Quick launch screen with saved plans
+  | 'setup'        // User configuring settings
+  | 'waiting'      // Fake home screen, waiting for timer
+  | 'ringing'      // Incoming call
+  | 'connected'    // In call
+  | 'ended'        // Call just ended (brief state before next action)
+  | 'pin-entry'    // Entering safe PIN to exit high intensity mode
+  | 'safe';        // Successfully exited with PIN
 
 export const TIMER_PRESETS: TimerPreset[] = [
   { label: 'Instant', seconds: 0 },

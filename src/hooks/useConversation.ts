@@ -100,6 +100,96 @@ export function useConversation() {
     }, 1000);
   }, [state.status]);
 
+  // Send initial greeting from the AI caller when call is answered
+  const sendInitialGreeting = useCallback(async () => {
+    const greetingText = baseScenario.fallbackResponses.greeting;
+    
+    setState(prev => ({ 
+      ...prev, 
+      isSpeaking: true, 
+      currentSpeaker: 'receiver' 
+    }));
+
+    try {
+      // Convert greeting to speech
+      const ttsResponse = await fetch('/api/conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: greetingText,
+          voiceId: selectedVoice,
+        }),
+      });
+
+      if (ttsResponse.ok) {
+        const audioBlob = await ttsResponse.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        const greetingMessage: Message = {
+          id: `msg-${Date.now()}-receiver`,
+          role: 'receiver',
+          content: greetingText,
+          timestamp: new Date(),
+          audioUrl,
+        };
+
+        setState(prev => ({
+          ...prev,
+          messages: [...prev.messages, greetingMessage],
+        }));
+
+        // Play audio
+        audioRef.current = new Audio(audioUrl);
+        audioRef.current.onended = () => {
+          setState(prev => ({
+            ...prev,
+            isSpeaking: false,
+            currentSpeaker: null,
+          }));
+        };
+        audioRef.current.onerror = () => {
+          setState(prev => ({
+            ...prev,
+            isSpeaking: false,
+            currentSpeaker: null,
+          }));
+        };
+        audioRef.current.play().catch(err => {
+          console.error('Audio playback failed:', err);
+          setState(prev => ({
+            ...prev,
+            isSpeaking: false,
+            currentSpeaker: null,
+          }));
+        });
+      } else {
+        // If TTS fails, still add the text message
+        const greetingMessage: Message = {
+          id: `msg-${Date.now()}-receiver`,
+          role: 'receiver',
+          content: greetingText,
+          timestamp: new Date(),
+        };
+
+        setState(prev => ({
+          ...prev,
+          messages: [...prev.messages, greetingMessage],
+          isSpeaking: false,
+          currentSpeaker: null,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to send initial greeting:', error);
+      setState(prev => ({ 
+        ...prev, 
+        isSpeaking: false, 
+        currentSpeaker: null,
+      }));
+    }
+  }, [baseScenario.fallbackResponses.greeting, selectedVoice]);
+
   // End the call - just sets to ended, doesn't reset to idle automatically
   const endCall = useCallback(() => {
     if (durationIntervalRef.current) {
@@ -287,6 +377,7 @@ export function useConversation() {
     fetchVoices,
     triggerRinging,
     answerCall,
+    sendInitialGreeting,
     endCall,
     resetToIdle,
     sendMessage,

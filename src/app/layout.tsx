@@ -9,9 +9,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Fake Call | Emergency Escape App",
-  description: "Get out of awkward situations with a realistic fake phone call from Mom",
-  keywords: ["fake call", "escape", "bad date", "emergency call", "prank call"],
+  title: "You Good? | Your Discreet Exit Strategy",
+  description: "Generate a realistic, AI-powered phone call to gracefully exit any situation",
+  keywords: ["fake call", "escape", "bad date", "emergency call", "you good", "exit strategy"],
 };
 
 export default function RootLayout({
