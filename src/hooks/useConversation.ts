@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { scenarios, defaultScenario } from '@/config/scenarios';
 
 export interface Message {
   id: string;
@@ -38,10 +39,13 @@ export function useConversation() {
   
   const [voices, setVoices] = useState<Voice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [selectedScenario, setSelectedScenario] = useState<string>(defaultScenario);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const currentScenario = scenarios[selectedScenario] || scenarios[defaultScenario];
 
   const fetchVoices = useCallback(async () => {
     setIsLoadingVoices(true);
@@ -150,6 +154,7 @@ export function useConversation() {
             role: m.role,
             content: m.content,
           })),
+          scenarioId: selectedScenario,
         }),
       });
 
@@ -245,14 +250,17 @@ export function useConversation() {
         isThinking: false,
       }));
     }
-  }, [state.status, state.messages, selectedVoice]);
+  }, [state.status, state.messages, selectedVoice, selectedScenario]);
 
   return {
     state,
     voices,
     selectedVoice,
+    selectedScenario,
+    currentScenario,
     isLoadingVoices,
     setSelectedVoice,
+    setSelectedScenario,
     fetchVoices,
     startCall,
     endCall,
