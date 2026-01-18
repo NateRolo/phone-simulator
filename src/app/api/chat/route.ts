@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { scenarios, defaultScenario, Scenario } from '@/config/scenarios';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -7,69 +8,37 @@ interface ChatMessage {
   content: string;
 }
 
-const SYSTEM_PROMPT = `You're Mom calling about an emergency. Your child needs an excuse to leave a bad date.
-
-CRITICAL RULES:
-- MAX 10 words per response. Be extremely brief.
-- Sound natural, slightly stressed, not dramatic
-- No exclamation marks overuse
-- Use casual mom speech: "honey", "sweetie", contractions
-
-First message: State the emergency in ~8 words.
-After that: Brief replies, keep urging them to come.
-
-Emergency: pipe burst, water everywhere.
-
-Examples of good responses:
-- "Honey, pipe burst. I need you home now."
-- "There's water everywhere, please hurry."
-- "Okay, drive safe. See you soon."
-- "Just come quick, okay?"
-- "Thank you sweetie, hurry please."
-- "Love you, be careful."`;
-
-// Fallback responses - very concise
-function getFallbackResponse(userMessage: string): string {
+function getFallbackResponse(userMessage: string, scenario: Scenario): string {
   const lowerMessage = userMessage.toLowerCase();
+  const fallback = scenario.fallbackResponses;
   
-  if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey') || lowerMessage.includes('mom')) {
-    return "Honey, pipe burst. I need you home now.";
+  if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
+    return fallback.greeting;
   }
   
   if (lowerMessage.includes('what') || lowerMessage.includes('happen')) {
-    return "Water everywhere. Please just come.";
+    return fallback.whatHappened;
   }
   
-  if (lowerMessage.includes('coming') || lowerMessage.includes('on my way') || lowerMessage.includes('be there')) {
-    return "Okay, drive safe. Thank you.";
+  if (lowerMessage.includes('coming') || lowerMessage.includes('on my way') || lowerMessage.includes('be there') || 
+      lowerMessage.includes('okay') || lowerMessage.includes('ok') || lowerMessage.includes('alright')) {
+    return fallback.acknowledged;
   }
   
   if (lowerMessage.includes('bye') || lowerMessage.includes('goodbye') || lowerMessage.includes('see you')) {
-    return "Love you, hurry. Bye.";
-  }
-  
-  if (lowerMessage.includes('okay') || lowerMessage.includes('ok') || lowerMessage.includes('alright')) {
-    return "Thank you sweetie. How long?";
+    return fallback.goodbye;
   }
 
   if (lowerMessage.includes('minutes') || lowerMessage.includes('soon') || lowerMessage.includes('long')) {
-    return "Okay, just hurry please.";
+    return fallback.howLong;
   }
   
-  const responses = [
-    "Please just come home.",
-    "I really need you here.",
-    "Can you leave now?",
-    "Hurry please, honey.",
-    "Just come quick okay?",
-  ];
-  
-  return responses[Math.floor(Math.random() * responses.length)];
+  return fallback.generic[Math.floor(Math.random() * fallback.generic.length)];
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, scenarioId } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -78,17 +47,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const scenario = scenarios[scenarioId] || scenarios[defaultScenario];
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'caller')?.content || '';
 
     if (!OPENAI_API_KEY) {
       return NextResponse.json({ 
-        response: getFallbackResponse(lastUserMessage),
+        response: getFallbackResponse(lastUserMessage, scenario),
         fallback: true 
       });
     }
 
     const chatMessages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: scenario.systemPrompt },
       ...messages.map((msg: { role: 'caller' | 'receiver'; content: string }) => ({
         role: msg.role === 'caller' ? 'user' : 'assistant',
         content: msg.content,
@@ -111,21 +81,22 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json({ 
-        response: getFallbackResponse(lastUserMessage),
+        response: getFallbackResponse(lastUserMessage, scenario),
         fallback: true 
       });
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices[0]?.message?.content || getFallbackResponse(lastUserMessage);
+    const assistantMessage = data.choices[0]?.message?.content || getFallbackResponse(lastUserMessage, scenario);
 
     return NextResponse.json({ 
       response: assistantMessage.trim() 
     });
   } catch (error) {
     console.error('Chat API error:', error);
+    const scenario = scenarios[defaultScenario];
     return NextResponse.json({ 
-      response: "Honey, please just come home.",
+      response: scenario.fallbackResponses.generic[0],
       fallback: true 
     });
   }

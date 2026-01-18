@@ -1,23 +1,23 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Phone, PhoneOff, Mic, Volume2 } from 'lucide-react';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { ConversationState } from '@/hooks/useConversation';
+import { Scenario } from '@/config/scenarios';
 
 interface CallScreenProps {
   state: ConversationState;
   onStartCall: () => void;
   onEndCall: () => void;
-  callerName?: string;
-  callerAvatar?: string;
+  scenario: Scenario;
 }
 
 export function CallScreen({
   state,
   onStartCall,
   onEndCall,
-  callerName = 'Mom',
+  scenario,
 }: CallScreenProps) {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -42,7 +42,10 @@ export function CallScreen({
           </div>
           <span className="ml-1">5G</span>
           <div className="ml-2 w-6 h-3 rounded-sm border border-white/60 relative">
-            <div className="absolute inset-[2px] right-1 bg-[#00ff88] rounded-[1px]" />
+            <div 
+              className="absolute inset-[2px] right-1 rounded-[1px]" 
+              style={{ backgroundColor: scenario.colors.primary }}
+            />
           </div>
         </div>
       </div>
@@ -64,15 +67,15 @@ export function CallScreen({
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#ff6b9d] to-[#c44569] p-[3px]">
+                <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${scenario.colors.gradient} p-[3px]`}>
                   <div className="w-full h-full rounded-full bg-[#1a1a24] flex items-center justify-center">
-                    <span className="text-4xl">👩</span>
+                    <span className="text-4xl">{scenario.callerEmoji}</span>
                   </div>
                 </div>
               </motion.div>
 
               <div className="text-center">
-                <h2 className="text-2xl font-semibold text-white mb-2">{callerName}</h2>
+                <h2 className="text-2xl font-semibold text-white mb-2">{scenario.callerName}</h2>
                 <p className="text-[#888899]">Tap to receive the call</p>
               </div>
 
@@ -101,7 +104,8 @@ export function CallScreen({
                 {[1, 2, 3].map((i) => (
                   <motion.div
                     key={i}
-                    className="absolute inset-0 rounded-full border-2 border-[#ff6b9d]"
+                    className="absolute inset-0 rounded-full border-2"
+                    style={{ borderColor: scenario.colors.primary }}
                     initial={{ scale: 1, opacity: 0.6 }}
                     animate={{ scale: 1.5 + i * 0.3, opacity: 0 }}
                     transition={{
@@ -109,27 +113,19 @@ export function CallScreen({
                       repeat: Infinity,
                       delay: i * 0.3,
                     }}
-                    style={{
-                      width: 128,
-                      height: 128,
-                      left: '50%',
-                      top: '50%',
-                      marginLeft: -64,
-                      marginTop: -64,
-                    }}
                   />
                 ))}
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#ff6b9d] to-[#c44569] p-[3px] relative z-10">
+                <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${scenario.colors.gradient} p-[3px] relative z-10`}>
                   <div className="w-full h-full rounded-full bg-[#1a1a24] flex items-center justify-center">
-                    <span className="text-4xl">👩</span>
+                    <span className="text-4xl">{scenario.callerEmoji}</span>
                   </div>
                 </div>
               </div>
 
               <div className="text-center">
-                <h2 className="text-2xl font-semibold text-white mb-2">{callerName}</h2>
+                <h2 className="text-2xl font-semibold text-white mb-2">{scenario.callerName}</h2>
                 <motion.p
-                  className="text-[#ff6b9d]"
+                  style={{ color: scenario.colors.primary }}
                   animate={{ opacity: [1, 0.5, 1] }}
                   transition={{ duration: 1, repeat: Infinity }}
                 >
@@ -158,15 +154,17 @@ export function CallScreen({
               className="flex flex-col items-center gap-6 w-full"
             >
               {/* Compact avatar */}
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#ff6b9d] to-[#c44569] p-[2px]">
+              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${scenario.colors.gradient} p-[2px]`}>
                 <div className="w-full h-full rounded-full bg-[#1a1a24] flex items-center justify-center">
-                  <span className="text-3xl">👩</span>
+                  <span className="text-3xl">{scenario.callerEmoji}</span>
                 </div>
               </div>
 
               <div className="text-center">
-                <h2 className="text-xl font-semibold text-white">{callerName}</h2>
-                <p className="text-[#ff6b9d] text-sm">{formatDuration(state.duration)}</p>
+                <h2 className="text-xl font-semibold text-white">{scenario.callerName}</h2>
+                <p className="text-sm" style={{ color: scenario.colors.primary }}>
+                  {formatDuration(state.duration)}
+                </p>
               </div>
 
               {/* Waveform when speaking */}
@@ -179,7 +177,7 @@ export function CallScreen({
                   >
                     <WaveformVisualizer
                       isActive={state.isSpeaking}
-                      color={state.currentSpeaker === 'caller' ? '#ff6b6b' : '#00ff88'}
+                      color={state.currentSpeaker === 'caller' ? '#ff6b6b' : scenario.colors.primary}
                     />
                   </motion.div>
                 )}
@@ -193,7 +191,9 @@ export function CallScreen({
                   className="px-4 py-2 rounded-full glass text-sm"
                 >
                   <span className="text-[#888899]">
-                    {state.currentSpeaker === 'receiver' ? '🤖 AI is speaking...' : '🎤 You are speaking...'}
+                    {state.currentSpeaker === 'receiver' 
+                      ? `${scenario.callerEmoji} ${scenario.callerName} speaking...` 
+                      : '🎤 You speaking...'}
                   </span>
                 </motion.div>
               )}
