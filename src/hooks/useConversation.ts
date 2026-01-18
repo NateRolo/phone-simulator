@@ -65,7 +65,8 @@ export function useConversation() {
     }
   }, [selectedVoice]);
 
-  const startCall = useCallback(() => {
+  // Trigger incoming call (ringing state) - doesn't auto-connect
+  const triggerRinging = useCallback(() => {
     setState(prev => ({
       ...prev,
       status: 'ringing',
@@ -73,27 +74,31 @@ export function useConversation() {
       duration: 0,
       isThinking: false,
     }));
-
-    // Simulate ringing for 2 seconds
-    setTimeout(() => {
-      setState(prev => ({
-        ...prev,
-        status: 'connected',
-      }));
-      
-      // Start duration counter
-      durationIntervalRef.current = setInterval(() => {
-        setState(prev => ({
-          ...prev,
-          duration: prev.duration + 1,
-        }));
-      }, 1000);
-    }, 2000);
   }, []);
 
+  // Answer the call - transitions from ringing to connected
+  const answerCall = useCallback(() => {
+    if (state.status !== 'ringing') return;
+    
+    setState(prev => ({
+      ...prev,
+      status: 'connected',
+    }));
+    
+    // Start duration counter
+    durationIntervalRef.current = setInterval(() => {
+      setState(prev => ({
+        ...prev,
+        duration: prev.duration + 1,
+      }));
+    }, 1000);
+  }, [state.status]);
+
+  // End the call - just sets to ended, doesn't reset to idle automatically
   const endCall = useCallback(() => {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
     }
     
     if (audioRef.current) {
@@ -108,18 +113,28 @@ export function useConversation() {
       currentSpeaker: null,
       isThinking: false,
     }));
+  }, []);
 
-    // Reset after showing ended state
-    setTimeout(() => {
-      setState({
-        status: 'idle',
-        messages: [],
-        isSpeaking: false,
-        currentSpeaker: null,
-        duration: 0,
-        isThinking: false,
-      });
-    }, 2000);
+  // Reset to idle state
+  const resetToIdle = useCallback(() => {
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    setState({
+      status: 'idle',
+      messages: [],
+      isSpeaking: false,
+      currentSpeaker: null,
+      duration: 0,
+      isThinking: false,
+    });
   }, []);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -262,8 +277,10 @@ export function useConversation() {
     setSelectedVoice,
     setSelectedScenario,
     fetchVoices,
-    startCall,
+    triggerRinging,
+    answerCall,
     endCall,
+    resetToIdle,
     sendMessage,
   };
 }

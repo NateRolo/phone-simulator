@@ -2,38 +2,185 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PhoneOff, Settings, ChevronDown, Sparkles } from 'lucide-react';
+import { PhoneOff } from 'lucide-react';
 import { PhoneFrame } from './PhoneFrame';
+import { SetupMenu } from './SetupMenu';
+import { FakeHomeScreen } from './FakeHomeScreen';
 import { CallScreen } from './CallScreen';
 import { ConversationView } from './ConversationView';
 import { MessageInput } from './MessageInput';
 import { WaveformVisualizer } from './WaveformVisualizer';
+import { PinEntryModal } from './PinEntryModal';
 import { useConversation } from '@/hooks/useConversation';
 import { useAutoRecorder } from '@/hooks/useAutoRecorder';
-import { scenarios } from '@/config/scenarios';
+import { AppConfig, AppPhase, MAX_CALLS_HIGH_INTENSITY, DELAY_BETWEEN_CALLS_MS } from '@/types/appConfig';
 
-const RECORDING_DURATION = 4000; // 4 seconds
+const RECORDING_DURATION = 4000;
 
 export function PhoneSimulator() {
   const {
     state,
     voices,
     selectedVoice,
-    selectedScenario,
     currentScenario,
     isLoadingVoices,
     setSelectedVoice,
     setSelectedScenario,
     fetchVoices,
-    startCall,
+    triggerRinging,
+    answerCall,
     endCall,
+    resetToIdle,
     sendMessage,
   } = useConversation();
 
-  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  // App-level state
+  const [appPhase, setAppPhase] = useState<AppPhase>('setup');
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number | null>(null);
+  const [callCount, setCallCount] = useState(0);
+  const [showPinModal, setShowPinModal] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const nextCallTimerRef = useRef<NodeJS.Timeout | null>(null);
   const wasAISpeakingRef = useRef(false);
 
+  // Fetch voices on mount
+  useEffect(() => {
+    fetchVoices();
+  }, [fetchVoices]);
+
+  // Handle setup completion
+  const handleSetupComplete = useCallback((newConfig: AppConfig) => {
+    setConfig(newConfig);
+    setSelectedScenario(newConfig.scenarioId);
+    setCallCount(0);
+    
+    if (newConfig.timerSeconds === null || newConfig.timerSeconds === 0) {
+      // Instant call
+      setAppPhase('ringing');
+      triggerRinging();
+    } else {
+      // Start timer
+      setAppPhase('waiting');
+      setTimerSecondsLeft(newConfig.timerSeconds);
+    }
+  }, [setSelectedScenario, triggerRinging]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (appPhase !== 'waiting' || timerSecondsLeft === null) return;
+
+    if (timerSecondsLeft <= 0) {
+      setAppPhase('ringing');
+      triggerRinging();
+      return;
+    }
+
+    timerRef.current = setTimeout(() => {
+      setTimerSecondsLeft(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [appPhase, timerSecondsLeft, triggerRinging]);
+
+  // Sync app phase with conversation state
+  useEffect(() => {
+    if (state.status === 'connected' && appPhase === 'ringing') {
+      setAppPhase('connected');
+    }
+  }, [state.status, appPhase]);
+
+  // Handle answer
+  const handleAnswer = useCallback(() => {
+    setCallCount(prev => prev + 1);
+    answerCall();
+    setAppPhase('connected');
+  }, [answerCall]);
+
+  // Handle decline (in high intensity, triggers new call)
+  const handleDecline = useCallback(() => {
+    if (!config) return;
+    
+    resetToIdle();
+    
+    if (config.intensity === 'high' && callCount < MAX_CALLS_HIGH_INTENSITY) {
+      // Schedule next call
+      nextCallTimerRef.current = setTimeout(() => {
+        triggerRinging();
+        setAppPhase('ringing');
+      }, DELAY_BETWEEN_CALLS_MS);
+    } else {
+      // Single call mode or max calls reached - back to setup
+      setAppPhase('setup');
+      setConfig(null);
+    }
+  }, [config, callCount, resetToIdle, triggerRinging]);
+
+  // Handle end call
+  const handleEndCall = useCallback(() => {
+    if (!config) return;
+    
+    endCall();
+    
+    if (config.intensity === 'high' && callCount < MAX_CALLS_HIGH_INTENSITY) {
+      // Schedule next call after delay
+      nextCallTimerRef.current = setTimeout(() => {
+        resetToIdle();
+        triggerRinging();
+        setAppPhase('ringing');
+      }, DELAY_BETWEEN_CALLS_MS);
+    } else {
+      // Single call or max reached
+      setTimeout(() => {
+        setAppPhase('setup');
+        setConfig(null);
+        resetToIdle();
+      }, 2000);
+    }
+  }, [config, callCount, endCall, resetToIdle, triggerRinging]);
+
+  // Handle emergency override (hidden button on caller name)
+  const handleEmergencyOverride = useCallback(() => {
+    // Clear any pending timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (nextCallTimerRef.current) clearTimeout(nextCallTimerRef.current);
+    
+    resetToIdle();
+    setAppPhase('setup');
+    setConfig(null);
+    setCallCount(0);
+    setShowPinModal(false);
+  }, [resetToIdle]);
+
+  // Cancel waiting timer
+  const handleCancelWaiting = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setAppPhase('setup');
+    setConfig(null);
+    setTimerSecondsLeft(null);
+  }, []);
+
+  // Handle PIN entry for high intensity mode
+  const handleRequestPinEntry = useCallback(() => {
+    setShowPinModal(true);
+  }, []);
+
+  const handlePinSuccess = useCallback(() => {
+    setShowPinModal(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (nextCallTimerRef.current) clearTimeout(nextCallTimerRef.current);
+    
+    resetToIdle();
+    setAppPhase('setup');
+    setConfig(null);
+    setCallCount(0);
+  }, [resetToIdle]);
+
+  // Audio recording for conversation
   const processRecording = useCallback(async (audioBlob: Blob) => {
     if (!audioBlob || audioBlob.size === 0) return;
     
@@ -65,14 +212,14 @@ export function PhoneSimulator() {
     recordingDuration: RECORDING_DURATION,
   });
 
-  // Start recording loop when call connects
+  // Start recording loop when connected
   useEffect(() => {
     if (state.status === 'connected' && !isActive && !state.isSpeaking && !state.isThinking && !isTranscribing) {
       startLoop();
     }
   }, [state.status, isActive, state.isSpeaking, state.isThinking, isTranscribing, startLoop]);
 
-  // Stop loop when call ends
+  // Stop loop when not connected
   useEffect(() => {
     if (state.status !== 'connected' && isActive) {
       stopLoop();
@@ -82,15 +229,10 @@ export function PhoneSimulator() {
   // Trigger next recording cycle when AI finishes speaking
   useEffect(() => {
     if (wasAISpeakingRef.current && !state.isSpeaking && !state.isThinking && !isTranscribing) {
-      // AI just finished speaking, trigger next cycle
       triggerNextCycle();
     }
     wasAISpeakingRef.current = state.isSpeaking;
   }, [state.isSpeaking, state.isThinking, isTranscribing, triggerNextCycle]);
-
-  useEffect(() => {
-    fetchVoices();
-  }, [fetchVoices]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -98,173 +240,56 @@ export function PhoneSimulator() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const scenarioList = Object.values(scenarios);
+  // Render setup menu (full screen, no phone frame)
+  if (appPhase === 'setup') {
+    return (
+      <SetupMenu
+        onStart={handleSetupComplete}
+        voices={voices}
+        selectedVoice={selectedVoice}
+        onSelectVoice={setSelectedVoice}
+        isLoadingVoices={isLoadingVoices}
+      />
+    );
+  }
 
-  const getActivityStatus = () => {
-    if (isRecording) return `Recording (${timeRemaining}s)`;
-    if (isTranscribing) return 'Processing...';
-    if (state.isThinking) return 'Thinking...';
-    if (state.isSpeaking) return `${currentScenario.callerName} Speaking`;
-    return 'Waiting...';
-  };
-
+  // Render phone frame for all other states
   return (
-    <div className="relative">
-      {/* Left panel - Settings */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.4 }}
-        className="absolute -left-64 top-8 w-56"
-      >
-        {/* Scenario Selector */}
-        <div className="glass rounded-2xl p-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4" style={{ color: currentScenario.colors.primary }} />
-            <span className="text-sm font-medium text-white">Scenario</span>
-          </div>
-          
-          <div className="space-y-2">
-            {scenarioList.map((scenario) => (
-              <button
-                key={scenario.id}
-                onClick={() => setSelectedScenario(scenario.id)}
-                disabled={state.status !== 'idle'}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
-                  selectedScenario === scenario.id
-                    ? 'ring-2'
-                    : 'hover:bg-[#2a2a3a]'
-                } ${state.status !== 'idle' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                style={{
-                  backgroundColor: selectedScenario === scenario.id 
-                    ? `${scenario.colors.primary}20` 
-                    : undefined,
-                  color: selectedScenario === scenario.id 
-                    ? scenario.colors.primary 
-                    : 'white',
-                  ringColor: selectedScenario === scenario.id 
-                    ? scenario.colors.primary 
-                    : undefined,
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span>{scenario.callerEmoji}</span>
-                  <div>
-                    <div className="font-medium">{scenario.name}</div>
-                    <div className="text-[10px] text-[#888899]">{scenario.callerName}</div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Voice selector */}
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Settings className="w-4 h-4" style={{ color: currentScenario.colors.primary }} />
-            <span className="text-sm font-medium text-white">Voice</span>
-          </div>
-          
-          <button
-            onClick={() => setShowVoiceSelector(!showVoiceSelector)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#2a2a3a] hover:bg-[#3a3a4a] transition-colors"
-          >
-            <span className="text-sm text-white truncate">
-              {isLoadingVoices
-                ? 'Loading...'
-                : voices.find((v) => v.id === selectedVoice)?.name || 'Select voice'}
-            </span>
-            <ChevronDown
-              className={`w-4 h-4 text-[#888899] transition-transform ${
-                showVoiceSelector ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          <AnimatePresence>
-            {showVoiceSelector && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-2 overflow-hidden"
-              >
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {voices.map((voice) => (
-                    <button
-                      key={voice.id}
-                      onClick={() => {
-                        setSelectedVoice(voice.id);
-                        setShowVoiceSelector(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedVoice === voice.id
-                          ? 'text-white'
-                          : 'hover:bg-[#2a2a3a] text-white'
-                      }`}
-                      style={{
-                        backgroundColor: selectedVoice === voice.id 
-                          ? `${currentScenario.colors.primary}20` 
-                          : undefined,
-                        color: selectedVoice === voice.id 
-                          ? currentScenario.colors.primary 
-                          : undefined,
-                      }}
-                    >
-                      <div className="font-medium">{voice.name}</div>
-                      <div className="text-[10px] text-[#888899]">
-                        {voice.gender} • {voice.accent}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Instructions */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-4 glass rounded-2xl p-4"
-        >
-          <h3 className="text-sm font-medium text-white mb-2">How it works</h3>
-          <ul className="text-xs text-[#888899] space-y-2">
-            <li className="flex items-start gap-2">
-              <span style={{ color: currentScenario.colors.primary }}>1.</span>
-              <span>Pick a scenario above</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span style={{ color: currentScenario.colors.primary }}>2.</span>
-              <span>Tap to answer the call</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span style={{ color: currentScenario.colors.primary }}>3.</span>
-              <span>You have 4 seconds to speak</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span style={{ color: currentScenario.colors.primary }}>4.</span>
-              <span>AI responds, then repeat!</span>
-            </li>
-          </ul>
-        </motion.div>
-      </motion.div>
-
-      {/* Phone */}
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#12121a] to-[#0a0a0f] flex items-center justify-center p-4">
       <PhoneFrame>
-        {state.status === 'idle' || state.status === 'ringing' || state.status === 'ended' ? (
+        {/* Waiting state - fake home screen */}
+        {appPhase === 'waiting' && (
+          <FakeHomeScreen
+            timerSecondsLeft={timerSecondsLeft}
+            onCancel={handleCancelWaiting}
+          />
+        )}
+
+        {/* Ringing state */}
+        {appPhase === 'ringing' && state.status === 'ringing' && (
           <CallScreen
             state={state}
-            onStartCall={startCall}
-            onEndCall={endCall}
+            onAnswer={handleAnswer}
+            onDecline={handleDecline}
+            onEndCall={handleEndCall}
+            onEmergencyOverride={handleEmergencyOverride}
             scenario={currentScenario}
+            showDeclineButton={true}
           />
-        ) : (
-          <div className="flex flex-col h-full">
-            {/* Connected header */}
+        )}
+
+        {/* Connected state */}
+        {appPhase === 'connected' && state.status === 'connected' && (
+          <div className="flex flex-col h-full relative">
+            {/* PIN entry modal overlay */}
+            <PinEntryModal
+              isOpen={showPinModal}
+              correctPin={config?.safePin || '1234'}
+              onSuccess={handlePinSuccess}
+              onClose={() => setShowPinModal(false)}
+            />
+
+            {/* Header */}
             <div className="flex items-center justify-between px-2 py-3">
               <div className="flex items-center gap-3">
                 <div 
@@ -275,7 +300,14 @@ export function PhoneSimulator() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-white">{currentScenario.callerName}</h3>
+                  {/* Hidden emergency override */}
+                  <button
+                    onClick={handleEmergencyOverride}
+                    className="text-sm font-medium text-white cursor-default focus:outline-none"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {currentScenario.callerName}
+                  </button>
                   <div className="flex items-center gap-2">
                     <span 
                       className="w-2 h-2 rounded-full animate-pulse" 
@@ -292,7 +324,7 @@ export function PhoneSimulator() {
               </div>
               
               <motion.button
-                onClick={endCall}
+                onClick={handleEndCall}
                 className="w-10 h-10 rounded-full bg-[#ff6b6b]/20 flex items-center justify-center"
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 107, 107, 0.4)' }}
                 whileTap={{ scale: 0.95 }}
@@ -300,6 +332,21 @@ export function PhoneSimulator() {
                 <PhoneOff className="w-5 h-5 text-[#ff6b6b]" />
               </motion.button>
             </div>
+
+            {/* High intensity indicator */}
+            {config?.intensity === 'high' && (
+              <div className="flex items-center justify-center gap-2 py-1">
+                <span className="text-[10px] text-[#888899]">
+                  Call {callCount} of {MAX_CALLS_HIGH_INTENSITY}
+                </span>
+                <button
+                  onClick={handleRequestPinEntry}
+                  className="text-[10px] text-[#ff6b6b]/50 hover:text-[#ff6b6b] transition-colors"
+                >
+                  Enter PIN to exit
+                </button>
+              </div>
+            )}
 
             {/* Status indicator */}
             <AnimatePresence mode="wait">
@@ -311,11 +358,7 @@ export function PhoneSimulator() {
                   exit={{ opacity: 0, height: 0 }}
                   className="flex items-center justify-center gap-3 py-3"
                 >
-                  <WaveformVisualizer
-                    isActive={true}
-                    color="#00ff88"
-                    barCount={5}
-                  />
+                  <WaveformVisualizer isActive={true} color="#00ff88" barCount={5} />
                   <span className="text-sm font-mono text-[#00ff88]">{timeRemaining}s</span>
                   <span className="text-xs text-[#888899]">Speak now...</span>
                 </motion.div>
@@ -371,11 +414,7 @@ export function PhoneSimulator() {
                   exit={{ opacity: 0, height: 0 }}
                   className="flex items-center justify-center gap-2 py-2"
                 >
-                  <WaveformVisualizer
-                    isActive={true}
-                    color={currentScenario.colors.primary}
-                    barCount={5}
-                  />
+                  <WaveformVisualizer isActive={true} color={currentScenario.colors.primary} barCount={5} />
                   <span className="text-xs text-[#888899]">{currentScenario.callerName} speaking</span>
                 </motion.div>
               )}
@@ -384,7 +423,7 @@ export function PhoneSimulator() {
             {/* Messages */}
             <ConversationView messages={state.messages} />
 
-            {/* Input - simplified for auto mode */}
+            {/* Input */}
             <div className="mt-auto pb-4">
               <MessageInput
                 onSend={sendMessage}
@@ -398,73 +437,31 @@ export function PhoneSimulator() {
             </div>
           </div>
         )}
-      </PhoneFrame>
 
-      {/* Right panel - Stats */}
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.5 }}
-        className="absolute -right-64 top-8 w-56"
-      >
-        <div className="glass rounded-2xl p-4">
-          <h3 className="text-sm font-medium text-white mb-3">Call Stats</h3>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[#888899]">Scenario</span>
-              <span 
-                className="text-xs font-medium px-2 py-1 rounded-full"
-                style={{ 
-                  backgroundColor: `${currentScenario.colors.primary}20`,
-                  color: currentScenario.colors.primary 
-                }}
-              >
-                {currentScenario.name}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[#888899]">Status</span>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                state.status === 'connected'
-                  ? 'bg-[#00ff88]/20 text-[#00ff88]'
-                  : state.status === 'ringing'
-                  ? 'bg-yellow-500/20 text-yellow-400'
-                  : 'bg-[#2a2a3a] text-[#888899]'
-              }`}>
-                {state.status.charAt(0).toUpperCase() + state.status.slice(1)}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[#888899]">Duration</span>
-              <span className="text-xs font-mono text-white">{formatDuration(state.duration)}</span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[#888899]">Messages</span>
-              <span className="text-xs text-white">{state.messages.length}</span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[#888899]">Activity</span>
-              <span className="text-xs text-white">{getActivityStatus()}</span>
-            </div>
+        {/* Ended state (brief) */}
+        {state.status === 'ended' && (
+          <div className="flex flex-col h-full items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center gap-4"
+            >
+              <div className="w-20 h-20 rounded-full bg-[#2a2a3a] flex items-center justify-center">
+                <PhoneOff className="w-8 h-8 text-[#888899]" />
+              </div>
+              <div className="text-center">
+                <h2 className="text-lg font-semibold text-white">Call Ended</h2>
+                <p className="text-sm text-[#888899]">{formatDuration(state.duration)}</p>
+              </div>
+              {config?.intensity === 'high' && callCount < MAX_CALLS_HIGH_INTENSITY && (
+                <p className="text-xs text-[#ff6b6b] animate-pulse">
+                  Next call coming...
+                </p>
+              )}
+            </motion.div>
           </div>
-        </div>
-
-        {/* Powered by */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="mt-4 text-center"
-        >
-          <p className="text-xs text-[#888899]">Powered by</p>
-          <p className="text-sm font-semibold gradient-text">OpenAI + ElevenLabs</p>
-        </motion.div>
-      </motion.div>
+        )}
+      </PhoneFrame>
     </div>
   );
 }

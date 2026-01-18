@@ -8,16 +8,22 @@ import { Scenario } from '@/config/scenarios';
 
 interface CallScreenProps {
   state: ConversationState;
-  onStartCall: () => void;
+  onAnswer: () => void;
+  onDecline: () => void;
   onEndCall: () => void;
+  onEmergencyOverride?: () => void;
   scenario: Scenario;
+  showDeclineButton?: boolean;
 }
 
 export function CallScreen({
   state,
-  onStartCall,
+  onAnswer,
+  onDecline,
   onEndCall,
+  onEmergencyOverride,
   scenario,
+  showDeclineButton = true,
 }: CallScreenProps) {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -53,44 +59,6 @@ export function CallScreen({
       {/* Main call content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4">
         <AnimatePresence mode="wait">
-          {state.status === 'idle' && (
-            <motion.div
-              key="idle"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex flex-col items-center gap-8"
-            >
-              {/* Avatar */}
-              <motion.div
-                className="relative"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${scenario.colors.gradient} p-[3px]`}>
-                  <div className="w-full h-full rounded-full bg-[#1a1a24] flex items-center justify-center">
-                    <span className="text-4xl">{scenario.callerEmoji}</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold text-white mb-2">{scenario.callerName}</h2>
-                <p className="text-[#888899]">Tap to receive the call</p>
-              </div>
-
-              {/* Call button */}
-              <motion.button
-                onClick={onStartCall}
-                className="w-20 h-20 rounded-full bg-[#00ff88] flex items-center justify-center shadow-lg shadow-[#00ff88]/30"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Phone className="w-8 h-8 text-black" />
-              </motion.button>
-            </motion.div>
-          )}
-
           {state.status === 'ringing' && (
             <motion.div
               key="ringing"
@@ -123,7 +91,14 @@ export function CallScreen({
               </div>
 
               <div className="text-center">
-                <h2 className="text-2xl font-semibold text-white mb-2">{scenario.callerName}</h2>
+                {/* Hidden emergency override - looks like normal text */}
+                <button
+                  onClick={onEmergencyOverride}
+                  className="text-2xl font-semibold text-white mb-2 cursor-default focus:outline-none"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {scenario.callerName}
+                </button>
                 <motion.p
                   style={{ color: scenario.colors.primary }}
                   animate={{ opacity: [1, 0.5, 1] }}
@@ -133,15 +108,29 @@ export function CallScreen({
                 </motion.p>
               </div>
 
-              {/* End call button */}
-              <motion.button
-                onClick={onEndCall}
-                className="w-16 h-16 rounded-full bg-[#ff6b6b] flex items-center justify-center shadow-lg shadow-[#ff6b6b]/30"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <PhoneOff className="w-6 h-6 text-white" />
-              </motion.button>
+              {/* Answer/Decline buttons */}
+              <div className="flex items-center gap-8">
+                {showDeclineButton && (
+                  <motion.button
+                    onClick={onDecline}
+                    className="w-16 h-16 rounded-full bg-[#ff6b6b] flex items-center justify-center shadow-lg shadow-[#ff6b6b]/30"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <PhoneOff className="w-6 h-6 text-white" />
+                  </motion.button>
+                )}
+                <motion.button
+                  onClick={onAnswer}
+                  className="w-20 h-20 rounded-full bg-[#00ff88] flex items-center justify-center shadow-lg shadow-[#00ff88]/30"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <Phone className="w-8 h-8 text-black" />
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
@@ -161,7 +150,14 @@ export function CallScreen({
               </div>
 
               <div className="text-center">
-                <h2 className="text-xl font-semibold text-white">{scenario.callerName}</h2>
+                {/* Hidden emergency override during call too */}
+                <button
+                  onClick={onEmergencyOverride}
+                  className="text-xl font-semibold text-white cursor-default focus:outline-none"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {scenario.callerName}
+                </button>
                 <p className="text-sm" style={{ color: scenario.colors.primary }}>
                   {formatDuration(state.duration)}
                 </p>
