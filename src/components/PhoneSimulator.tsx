@@ -35,6 +35,8 @@ export function PhoneSimulator() {
     sendMessage,
   } = useConversation();
 
+  const [showApp, setShowApp] = useState(false);
+  
   // App-level state
   const [appPhase, setAppPhase] = useState<AppPhase>('setup');
   const [config, setConfig] = useState<AppConfig | null>(null);
