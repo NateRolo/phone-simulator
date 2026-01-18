@@ -103,32 +103,7 @@ export function SetupMenu({
         </div>
 
         {/* Settings Card */}
-        <div className="glass rounded-3xl p-6 space-y-5">
-          
-          {/* 1. Contact Name */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Contact Name
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Enter name..."
-                className="flex-1 px-4 py-3 rounded-xl bg-[#2a2a3a] text-white placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50"
-              />
-              <motion.button
-                onClick={handleRandomizeName}
-                disabled={!selectedCaller}
-                className="px-4 py-3 rounded-xl bg-[#2a2a3a] text-[#888899] hover:text-white hover:bg-[#3a3a4a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                whileTap={{ scale: 0.95 }}
-                title="Randomize name"
-              >
-                <Shuffle className="w-5 h-5" />
-              </motion.button>
-            </div>
-          </div>
+        <div className="glass rounded-3xl p-6 space-y-5">                    
 
           {/* 2. Who's Calling */}
           <div>
@@ -164,6 +139,31 @@ export function SetupMenu({
                   </motion.button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* 1. Contact Name */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Contact Name
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Enter name..."
+                className="flex-1 px-4 py-3 rounded-xl bg-[#2a2a3a] text-white placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50"
+              />
+              <motion.button
+                onClick={handleRandomizeName}
+                disabled={!selectedCaller}
+                className="px-4 py-3 rounded-xl bg-[#2a2a3a] text-[#888899] hover:text-white hover:bg-[#3a3a4a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                whileTap={{ scale: 0.95 }}
+                title="Randomize name"
+              >
+                <Shuffle className="w-5 h-5" />
+              </motion.button>
             </div>
           </div>
 
@@ -286,21 +286,6 @@ export function SetupMenu({
                 className="w-full px-4 py-3 rounded-xl bg-[#2a2a3a] text-white focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50 [color-scheme:dark]"
               />
             )}
-          </div>
-
-          {/* 5. Plan Name */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Plan Name
-              <span className="text-xs text-[#555] ml-2">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={planName}
-              onChange={(e) => setPlanName(e.target.value)}
-              placeholder="e.g., Date escape, Meeting bail..."
-              className="w-full px-4 py-3 rounded-xl bg-[#2a2a3a] text-white placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50"
-            />
           </div>
 
           {/* 6. Save Button */}
