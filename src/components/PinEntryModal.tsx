@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Delete } from 'lucide-react';
+import { Lock, X, Delete } from 'lucide-react';
 
 interface PinEntryModalProps {
   isOpen: boolean;
@@ -11,22 +11,6 @@ interface PinEntryModalProps {
   onClose: () => void;
   attemptsLeft?: number;
 }
-
-// iOS keypad with letters
-const keypadButtons = [
-  { digit: '1', letters: '' },
-  { digit: '2', letters: 'ABC' },
-  { digit: '3', letters: 'DEF' },
-  { digit: '4', letters: 'GHI' },
-  { digit: '5', letters: 'JKL' },
-  { digit: '6', letters: 'MNO' },
-  { digit: '7', letters: 'PQRS' },
-  { digit: '8', letters: 'TUV' },
-  { digit: '9', letters: 'WXYZ' },
-  { digit: '', letters: '' }, // Empty
-  { digit: '0', letters: '' },
-  { digit: 'del', letters: '' }, // Delete
-];
 
 export function PinEntryModal({
   isOpen,
@@ -66,7 +50,7 @@ export function PinEntryModal({
     setError(false);
   };
 
-  const pinLength = correctPin.length || 6;
+  const numpadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
 
   return (
     <AnimatePresence>
@@ -75,38 +59,47 @@ export function PinEntryModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 z-50 ios-gradient flex flex-col items-center"
+          className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6"
         >
-          {/* Dynamic Island style notch */}
-          <div className="flex justify-center pt-4">
-            <div className="w-28 h-8 bg-black rounded-full flex items-center justify-between px-3">
-              <Lock className="w-4 h-4 text-white/80" />
-              <div className="w-5 h-5 rounded-full border-2 border-white/40 flex items-center justify-center">
-                <span className="text-[8px] text-white/60">☺</span>
-              </div>
-            </div>
-          </div>
+          {/* Close button - hidden in corner */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-white/30 hover:text-white/50 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Icon */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+            className="w-16 h-16 rounded-full bg-[#00ff88]/20 flex items-center justify-center mb-6"
+          >
+            <Lock className="w-8 h-8 text-[#00ff88]" />
+          </motion.div>
 
           {/* Title */}
-          <div className="mt-16 mb-6">
-            <h2 className="text-xl font-normal text-white">Enter Passcode</h2>
-          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Enter Safe PIN</h2>
+          <p className="text-sm text-[#888899] mb-6 text-center">
+            Enter your PIN to stop the calls
+          </p>
 
-          {/* PIN Dots */}
+          {/* PIN Display */}
           <motion.div
             animate={error ? { x: [-10, 10, -10, 10, 0] } : {}}
             transition={{ duration: 0.3 }}
-            className="flex gap-5 mb-12"
+            className="flex gap-3 mb-8"
           >
-            {Array.from({ length: pinLength }).map((_, i) => (
+            {Array.from({ length: correctPin.length }).map((_, i) => (
               <div
                 key={i}
-                className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-150 ${
+                className={`w-4 h-4 rounded-full border-2 transition-all ${
                   error
-                    ? 'border-[#ff3b30] bg-[#ff3b30]'
+                    ? 'border-[#ff6b6b] bg-[#ff6b6b]'
                     : i < pin.length
-                    ? 'border-white bg-white'
-                    : 'border-white/60 bg-transparent'
+                    ? 'border-[#00ff88] bg-[#00ff88]'
+                    : 'border-[#555] bg-transparent'
                 }`}
               />
             ))}
@@ -117,27 +110,27 @@ export function PinEntryModal({
             <motion.p
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-sm text-white/80 mb-4 -mt-8"
+              className="text-sm text-[#ff6b6b] mb-4"
             >
-              Wrong passcode. {attempts} attempts left.
+              Wrong PIN. {attempts} attempts left.
             </motion.p>
           )}
 
-          {/* iOS Numeric Keypad */}
-          <div className="grid grid-cols-3 gap-x-6 gap-y-4 px-8">
-            {keypadButtons.map((btn, index) => {
-              if (btn.digit === '') {
-                return <div key={index} className="w-20 h-20" />;
+          {/* Numpad */}
+          <div className="grid grid-cols-3 gap-4 w-64">
+            {numpadDigits.map((digit, index) => {
+              if (digit === '') {
+                return <div key={index} />;
               }
               
-              if (btn.digit === 'del') {
+              if (digit === 'del') {
                 return (
                   <button
                     key={index}
                     onClick={handleDelete}
-                    className="w-20 h-20 rounded-full flex items-center justify-center"
+                    className="h-14 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors"
                   >
-                    <Delete className="w-7 h-7 text-white" />
+                    <Delete className="w-6 h-6" />
                   </button>
                 );
               }
@@ -145,41 +138,20 @@ export function PinEntryModal({
               return (
                 <motion.button
                   key={index}
-                  onClick={() => handleDigitPress(btn.digit)}
-                  className="w-20 h-20 rounded-full ios-keypad-button flex flex-col items-center justify-center"
+                  onClick={() => handleDigitPress(digit)}
+                  className="h-14 rounded-full bg-[#2a2a3a] text-white text-xl font-medium hover:bg-[#3a3a4a] transition-colors"
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span className="text-3xl font-light text-white">{btn.digit}</span>
-                  {btn.letters && (
-                    <span className="text-[10px] tracking-[0.2em] text-white/80 mt-0.5">
-                      {btn.letters}
-                    </span>
-                  )}
+                  {digit}
                 </motion.button>
               );
             })}
           </div>
 
-          {/* Bottom buttons - Emergency & Cancel */}
-          <div className="flex justify-between w-full px-12 mt-auto pb-12">
-            <button 
-              onClick={onClose}
-              className="text-white/80 text-lg"
-            >
-              Emergency
-            </button>
-            <button 
-              onClick={onClose}
-              className="text-white/80 text-lg"
-            >
-              Cancel
-            </button>
-          </div>
-
-          {/* Home indicator */}
-          <div className="flex justify-center pb-2">
-            <div className="w-32 h-1 bg-white/30 rounded-full" />
-          </div>
+          {/* Attempts indicator */}
+          <p className="text-xs text-[#555] mt-6">
+            {attempts} attempts remaining
+          </p>
         </motion.div>
       )}
     </AnimatePresence>

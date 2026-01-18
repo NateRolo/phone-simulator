@@ -19,55 +19,55 @@ export function FakeHomeScreen({ timerSecondsLeft, onCancel }: FakeHomeScreenPro
 
   const formatTime = (date: Date) => {
     const hours = date.getHours();
-    const minutes = date.getMinutes();
-    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
   return (
-    <div className="h-full flex flex-col ios-gradient relative overflow-hidden">
+    <div className="h-full flex flex-col relative overflow-hidden" style={{
+      background: 'linear-gradient(180deg, #9b7bb8 0%, #a988bf 20%, #b898c8 40%, #c5a5d1 60%, #c9a8d4 80%, #b898c8 100%)'
+    }}>
       {/* iOS Status bar */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-2 relative z-10">
+      <div className="flex items-center justify-between px-6 pt-3 pb-2 relative z-10">
         <span className="text-sm font-semibold text-white/90">TELUS Wi-Fi</span>
         <div className="flex items-center gap-1">
           <div className="flex gap-[2px] items-end">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="w-[3px] rounded-sm bg-white/60"
-                style={{ height: `${4 + i * 2}px` }}
-              />
-            ))}
+            <div className="w-[4px] h-[4px] rounded-sm bg-white/50" />
+            <div className="w-[4px] h-[6px] rounded-sm bg-white/50" />
+            <div className="w-[4px] h-[8px] rounded-sm bg-white" />
+            <div className="w-[4px] h-[10px] rounded-sm bg-white" />
           </div>
-          <svg className="w-5 h-4 ml-1" viewBox="0 0 16 12" fill="white">
-            <path d="M8 2C11.5 2 14.5 3.5 16 6C14.5 8.5 11.5 10 8 10C4.5 10 1.5 8.5 0 6C1.5 3.5 4.5 2 8 2Z" fillOpacity="0.9"/>
+          <svg className="w-5 h-4 ml-2" viewBox="0 0 24 16" fill="white">
+            <path d="M1 8C3.5 3.5 7.5 1 12 1s8.5 2.5 11 7c-2.5 4.5-6.5 7-11 7S3.5 12.5 1 8z" fillOpacity="0.9"/>
           </svg>
-          <svg className="w-7 h-4 ml-1" viewBox="0 0 25 12" fill="white">
-            <rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="white" strokeOpacity="0.35" fill="none"/>
-            <rect x="22" y="3.5" width="2" height="5" rx="1" fillOpacity="0.4"/>
-            <rect x="2" y="2" width="17" height="8" rx="2" fill="white"/>
-          </svg>
+          <div className="flex items-center ml-1">
+            <div className="w-7 h-3.5 rounded-[4px] border-2 border-white/60 relative p-[2px]">
+              <div className="h-full w-[70%] rounded-[2px] bg-white" />
+            </div>
+            <div className="w-1 h-2 bg-white/60 rounded-r-sm ml-[1px]" />
+          </div>
         </div>
       </div>
 
-      {/* Time & Date display - iOS style */}
-      <div className="text-center pt-16 relative z-10">
-        <motion.p 
-          className="text-xl text-white/80 font-light mb-2"
+      {/* Date & Time display - iOS Lock Screen style */}
+      <div className="text-center pt-12 relative z-10">
+        <motion.p
+          className="text-xl text-white/90 font-light mb-2"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
           {formatDate(time)}
         </motion.p>
-        <motion.h1 
-          className="text-8xl font-light text-white tracking-tight"
+        <motion.h1
+          className="text-[96px] font-extralight text-white leading-none tracking-tight"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -78,9 +78,9 @@ export function FakeHomeScreen({ timerSecondsLeft, onCancel }: FakeHomeScreenPro
       </div>
 
       {/* Hidden cancel - tap the time area */}
-      <button 
+      <button
         onClick={onCancel}
-        className="absolute top-24 left-1/2 -translate-x-1/2 w-48 h-32 opacity-0"
+        className="absolute top-24 left-1/2 -translate-x-1/2 w-64 h-32 opacity-0"
         aria-label="Cancel timer"
       />
 
@@ -91,25 +91,27 @@ export function FakeHomeScreen({ timerSecondsLeft, onCancel }: FakeHomeScreenPro
           animate={{ opacity: 1 }}
           className="absolute top-[220px] left-1/2 -translate-x-1/2"
         >
-          <div className="w-2 h-2 rounded-full bg-white/30 animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-white/40 animate-pulse" />
         </motion.div>
       )}
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom action buttons - Flashlight & Camera */}
-      <div className="flex justify-between items-end px-10 pb-8 relative z-10">
+      {/* Bottom action buttons - Flashlight & Camera (iOS Lock Screen) */}
+      <div className="flex justify-between items-end px-10 pb-10 relative z-10">
         <motion.button
-          className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center"
-          whileTap={{ scale: 0.95, backgroundColor: 'rgba(255,255,255,0.3)' }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(80, 60, 90, 0.6)' }}
+          whileTap={{ scale: 0.95, backgroundColor: 'rgba(100, 80, 110, 0.8)' }}
         >
           <Flashlight className="w-7 h-7 text-white" />
         </motion.button>
-        
+
         <motion.button
-          className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center"
-          whileTap={{ scale: 0.95, backgroundColor: 'rgba(255,255,255,0.3)' }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(80, 60, 90, 0.6)' }}
+          whileTap={{ scale: 0.95, backgroundColor: 'rgba(100, 80, 110, 0.8)' }}
         >
           <Camera className="w-7 h-7 text-white" />
         </motion.button>
@@ -117,7 +119,7 @@ export function FakeHomeScreen({ timerSecondsLeft, onCancel }: FakeHomeScreenPro
 
       {/* Home indicator */}
       <div className="flex justify-center pb-2 relative z-10">
-        <div className="w-32 h-1 bg-white/40 rounded-full" />
+        <div className="w-32 h-1 bg-white/50 rounded-full" />
       </div>
     </div>
   );

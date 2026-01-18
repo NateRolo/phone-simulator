@@ -1,8 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Clock, Zap, ChevronRight, Phone } from 'lucide-react';
-import { SavedPlan } from '@/types/appConfig';
+import { Plus, Trash2, Clock, Zap, ChevronRight, Bookmark } from 'lucide-react';
+import { SavedPlan, AppConfig } from '@/types/appConfig';
 import { scenarios } from '@/config/scenarios';
 
 interface QuickLaunchProps {
@@ -29,51 +29,43 @@ export function QuickLaunch({
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* iOS Navigation Bar */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-white/10">
-        <div className="flex items-center justify-center px-4 py-3">
-          <h1 className="text-lg font-semibold text-white">You Good?</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#12121a] to-[#0a0a0f] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        {/* Header */}
+        <div className="text-center mb-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#00ff88] to-[#00cc6a] flex items-center justify-center"
+          >
+            <Bookmark className="w-7 h-7 text-black" />
+          </motion.div>
+          <h1 className="text-2xl font-bold text-white mb-1">You Good?</h1>
+          <p className="text-sm text-[#888899]">Quick launch your saved plans</p>
         </div>
-      </div>
 
-      <div className="px-4 py-6 space-y-6 max-w-lg mx-auto">
-        {/* App Icon */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-          className="flex justify-center mb-2"
-        >
-          <div className="w-20 h-20 rounded-[22px] bg-gradient-to-br from-[#34c759] to-[#30a14e] flex items-center justify-center shadow-lg">
-            <Phone className="w-10 h-10 text-white" />
-          </div>
-        </motion.div>
-
-        <p className="text-center text-[#8e8e93] text-sm mb-6">
-          Your discreet exit strategy
-        </p>
-
-        {/* Quick Launch Section */}
-        <div>
-          <p className="text-[#8e8e93] text-sm uppercase tracking-wide px-4 mb-2">
-            Saved Plans
-          </p>
-          
+        {/* Plans list or empty state */}
+        <div className="glass rounded-3xl p-4 mb-4">
           {plans.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="ios-card p-8 text-center"
+              className="text-center py-8"
             >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#2c2c2e] flex items-center justify-center">
-                <Phone className="w-8 h-8 text-[#48484a]" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#2a2a3a] flex items-center justify-center">
+                <Bookmark className="w-8 h-8 text-[#555]" />
               </div>
-              <p className="text-[#8e8e93] mb-1">No saved plans yet</p>
-              <p className="text-xs text-[#48484a]">Create a plan to quick launch it later</p>
+              <p className="text-[#888899] mb-2">No saved plans yet</p>
+              <p className="text-xs text-[#555]">Create your first plan to quick launch it later</p>
             </motion.div>
           ) : (
-            <div className="ios-card overflow-hidden">
+            <div className="space-y-2">
               <AnimatePresence>
                 {plans.map((plan, index) => {
                   const scenario = getScenarioInfo(plan.scenarioId);
@@ -88,33 +80,30 @@ export function QuickLaunch({
                     >
                       <button
                         onClick={() => onLaunchPlan(plan)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 ${
-                          index < plans.length - 1 ? 'border-b border-[#38383a]' : ''
-                        }`}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#2a2a3a] hover:bg-[#3a3a4a] transition-all text-left"
                       >
-                        {/* Scenario Icon */}
+                        {/* Scenario emoji */}
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                          style={{ backgroundColor: scenario.colors.primary + '30' }}
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                          style={{ backgroundColor: `${scenario.colors.primary}20` }}
                         >
                           {scenario.callerEmoji}
                         </div>
 
-                        {/* Plan Info */}
-                        <div className="flex-1 text-left min-w-0">
+                        {/* Plan info */}
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-white truncate">
                               {plan.name}
                             </span>
                             {plan.intensity === 'high' && (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#ff3b30]/20 text-[#ff3b30]">
+                              <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#ff6b6b]/20 text-[#ff6b6b]">
                                 Persistent
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-[#8e8e93] mt-0.5">
+                          <div className="flex items-center gap-3 text-xs text-[#888899] mt-0.5">
                             <span>{plan.customCallerName}</span>
-                            <span>•</span>
                             <span className="flex items-center gap-1">
                               {plan.timerSeconds === 0 ? (
                                 <><Zap className="w-3 h-3" /> Instant</>
@@ -125,19 +114,19 @@ export function QuickLaunch({
                           </div>
                         </div>
 
-                        {/* Launch Arrow */}
-                        <ChevronRight className="w-5 h-5 text-[#48484a] group-hover:text-[#007aff] transition-colors" />
+                        {/* Launch arrow */}
+                        <ChevronRight className="w-5 h-5 text-[#555] group-hover:text-[#00ff88] transition-colors" />
                       </button>
 
-                      {/* Delete Button - Swipe or hover */}
+                      {/* Delete button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeletePlan(plan.id);
                         }}
-                        className="absolute right-14 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-12 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 text-[#555] hover:text-[#ff6b6b] transition-all"
                       >
-                        <Trash2 className="w-4 h-4 text-[#ff3b30]" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </motion.div>
                   );
@@ -147,21 +136,22 @@ export function QuickLaunch({
           )}
         </div>
 
-        {/* Create New Button */}
+        {/* Create new button */}
         <motion.button
           onClick={onCreateNew}
-          className="w-full py-4 rounded-xl font-semibold text-white bg-[#007aff] flex items-center justify-center gap-2"
+          className="w-full py-4 rounded-xl font-semibold text-black bg-[#00ff88] flex items-center justify-center gap-2"
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
           <Plus className="w-5 h-5" />
           Create New Plan
         </motion.button>
 
-        {/* Footer Hint */}
-        <p className="text-center text-xs text-[#48484a] pt-4">
+        {/* Footer hint */}
+        <p className="text-center text-xs text-[#555] mt-4">
           Tap a plan to launch instantly
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

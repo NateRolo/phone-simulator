@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { PhoneOff } from 'lucide-react';
 import { PhoneFrame } from './PhoneFrame';
 import { SetupMenu } from './SetupMenu';
 import { QuickLaunch } from './QuickLaunch';
 import { FakeHomeScreen } from './FakeHomeScreen';
 import { CallScreen } from './CallScreen';
-import { ConversationView } from './ConversationView';
-import { MessageInput } from './MessageInput';
-import { WaveformVisualizer } from './WaveformVisualizer';
 import { PinEntryModal } from './PinEntryModal';
 import { useConversation } from '@/hooks/useConversation';
 import { useAutoRecorder } from '@/hooks/useAutoRecorder';
@@ -354,9 +351,9 @@ export function PhoneSimulator() {
           />
         )}
 
-        {/* Connected state */}
+        {/* Connected state - iOS in-call UI */}
         {appPhase === 'connected' && state.status === 'connected' && (
-          <div className="flex flex-col h-full relative">
+          <div className="relative h-full">
             {/* PIN entry modal overlay */}
             <PinEntryModal
               isOpen={showPinModal}
@@ -365,152 +362,31 @@ export function PhoneSimulator() {
               onClose={() => setShowPinModal(false)}
             />
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-2 py-3">
-              <div className="flex items-center gap-3">
-                <div 
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br ${currentScenario.colors.gradient} p-[2px]`}
-                >
-                  <div className="w-full h-full rounded-full bg-[#1a1a24] flex items-center justify-center">
-                    <span className="text-lg">{currentScenario.callerEmoji}</span>
-                  </div>
-                </div>
-                <div>
-                  {/* Hidden emergency override */}
-                  <button
-                    onClick={handleEmergencyOverride}
-                    className="text-sm font-medium text-white cursor-default focus:outline-none"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    {currentScenario.callerName || currentScenario.defaultCallerName}
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <span 
-                      className="w-2 h-2 rounded-full animate-pulse" 
-                      style={{ backgroundColor: currentScenario.colors.primary }}
-                    />
-                    <span 
-                      className="text-xs"
-                      style={{ color: currentScenario.colors.primary }}
-                    >
-                      {formatDuration(state.duration)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <motion.button
-                onClick={handleEndCall}
-                className="w-10 h-10 rounded-full bg-[#ff6b6b]/20 flex items-center justify-center"
-                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 107, 107, 0.4)' }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <PhoneOff className="w-5 h-5 text-[#ff6b6b]" />
-              </motion.button>
-            </div>
+            {/* iOS Call Screen */}
+            <CallScreen
+              state={state}
+              onAnswer={() => {}}
+              onDecline={() => {}}
+              onEndCall={handleEndCall}
+              onEmergencyOverride={handleEmergencyOverride}
+              scenario={currentScenario}
+              showDeclineButton={false}
+            />
 
-            {/* High intensity indicator */}
+            {/* High intensity indicator overlay */}
             {config?.intensity === 'high' && (
-              <div className="flex items-center justify-center gap-2 py-1">
-                <span className="text-[10px] text-[#888899]">
-                  Call {callCount} of {MAX_CALLS_HIGH_INTENSITY}
+              <div className="absolute top-20 left-0 right-0 flex items-center justify-center gap-2 py-1 z-20">
+                <span className="text-[10px] text-white/60 bg-black/30 px-2 py-1 rounded-full">
+                  Call {callCount}/{MAX_CALLS_HIGH_INTENSITY}
                 </span>
                 <button
                   onClick={handleRequestPinEntry}
-                  className="text-[10px] text-[#ff6b6b]/50 hover:text-[#ff6b6b] transition-colors"
+                  className="text-[10px] text-white/40 hover:text-white/80 transition-colors bg-black/30 px-2 py-1 rounded-full"
                 >
-                  Enter PIN to exit
+                  PIN to exit
                 </button>
               </div>
             )}
-
-            {/* Status indicator */}
-            <AnimatePresence mode="wait">
-              {isRecording && (
-                <motion.div
-                  key="recording"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center justify-center gap-3 py-3"
-                >
-                  <WaveformVisualizer isActive={true} color="#00ff88" barCount={5} />
-                  <span className="text-sm font-mono text-[#00ff88]">{timeRemaining}s</span>
-                  <span className="text-xs text-[#888899]">Speak now...</span>
-                </motion.div>
-              )}
-              {isTranscribing && !isRecording && (
-                <motion.div
-                  key="transcribing"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center justify-center gap-2 py-2"
-                >
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="w-2 h-2 rounded-full bg-[#00ccff]"
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-[#888899]">Processing...</span>
-                </motion.div>
-              )}
-              {state.isThinking && !isTranscribing && !isRecording && (
-                <motion.div
-                  key="thinking"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center justify-center gap-2 py-2"
-                >
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: currentScenario.colors.primary }}
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-[#888899]">Thinking...</span>
-                </motion.div>
-              )}
-              {state.isSpeaking && !state.isThinking && !isRecording && (
-                <motion.div
-                  key="speaking"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center justify-center gap-2 py-2"
-                >
-                  <WaveformVisualizer isActive={true} color={currentScenario.colors.primary} barCount={5} />
-                  <span className="text-xs text-[#888899]">{currentScenario.callerName || currentScenario.defaultCallerName} speaking</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Messages */}
-            <ConversationView messages={state.messages} />
-
-            {/* Input */}
-            <div className="mt-auto pb-4">
-              <MessageInput
-                onSend={sendMessage}
-                disabled={state.status !== 'connected' || state.isThinking || state.isSpeaking || isRecording}
-                isRecording={isRecording}
-                timeRemaining={timeRemaining}
-                isTranscribing={isTranscribing}
-                isAISpeaking={state.isSpeaking}
-                isThinking={state.isThinking}
-              />
-            </div>
           </div>
         )}
 
