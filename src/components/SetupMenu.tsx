@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shuffle, ChevronDown, Clock, Bell, Save, User, Users, Briefcase } from 'lucide-react';
+import { Shuffle, ChevronDown, Clock, Bell, Save, User, Users, Briefcase, Play } from 'lucide-react';
 import { AppConfig, IntensityLevel, TIMER_PRESETS } from '@/types/appConfig';
 import { scenarios, Scenario } from '@/config/scenarios';
 
@@ -311,8 +311,8 @@ export function SetupMenu({
             whileHover={{ scale: canSave ? 1.02 : 1 }}
             whileTap={{ scale: canSave ? 0.98 : 1 }}
           >
-            <Save className="w-5 h-5" />
-            SAVE
+            <Play className="w-5 h-5" />
+            Run
           </motion.button>
 
           {!canSave && (
