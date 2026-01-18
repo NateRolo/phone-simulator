@@ -40,12 +40,18 @@ export function useConversation() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [selectedScenario, setSelectedScenario] = useState<string>(defaultScenario);
+  const [customCallerName, setCustomCallerName] = useState<string>('');
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentScenario = scenarios[selectedScenario] || scenarios[defaultScenario];
+  const baseScenario = scenarios[selectedScenario] || scenarios[defaultScenario];
+  
+  // Create scenario with custom caller name if provided
+  const currentScenario = customCallerName 
+    ? { ...baseScenario, callerName: customCallerName }
+    : { ...baseScenario, callerName: baseScenario.defaultCallerName };
 
   const fetchVoices = useCallback(async () => {
     setIsLoadingVoices(true);
@@ -273,9 +279,11 @@ export function useConversation() {
     selectedVoice,
     selectedScenario,
     currentScenario,
+    customCallerName,
     isLoadingVoices,
     setSelectedVoice,
     setSelectedScenario,
+    setCustomCallerName,
     fetchVoices,
     triggerRinging,
     answerCall,

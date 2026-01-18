@@ -10,6 +10,8 @@ export interface AppConfig {
   intensity: IntensityLevel;
   safePin: string;
   scenarioId: string;
+  customCallerName: string;
+  planName?: string;
 }
 
 export type AppPhase = 

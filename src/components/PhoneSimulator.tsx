@@ -26,6 +26,7 @@ export function PhoneSimulator() {
     isLoadingVoices,
     setSelectedVoice,
     setSelectedScenario,
+    setCustomCallerName,
     fetchVoices,
     triggerRinging,
     answerCall,
@@ -55,6 +56,7 @@ export function PhoneSimulator() {
   const handleSetupComplete = useCallback((newConfig: AppConfig) => {
     setConfig(newConfig);
     setSelectedScenario(newConfig.scenarioId);
+    setCustomCallerName(newConfig.customCallerName);
     setCallCount(0);
     
     if (newConfig.timerSeconds === null || newConfig.timerSeconds === 0) {
@@ -66,7 +68,7 @@ export function PhoneSimulator() {
       setAppPhase('waiting');
       setTimerSecondsLeft(newConfig.timerSeconds);
     }
-  }, [setSelectedScenario, triggerRinging]);
+  }, [setSelectedScenario, setCustomCallerName, triggerRinging]);
 
   // Timer countdown
   useEffect(() => {
@@ -306,7 +308,7 @@ export function PhoneSimulator() {
                     className="text-sm font-medium text-white cursor-default focus:outline-none"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    {currentScenario.callerName}
+                    {currentScenario.callerName || currentScenario.defaultCallerName}
                   </button>
                   <div className="flex items-center gap-2">
                     <span 
@@ -415,7 +417,7 @@ export function PhoneSimulator() {
                   className="flex items-center justify-center gap-2 py-2"
                 >
                   <WaveformVisualizer isActive={true} color={currentScenario.colors.primary} barCount={5} />
-                  <span className="text-xs text-[#888899]">{currentScenario.callerName} speaking</span>
+                  <span className="text-xs text-[#888899]">{currentScenario.callerName || currentScenario.defaultCallerName} speaking</span>
                 </motion.div>
               )}
             </AnimatePresence>

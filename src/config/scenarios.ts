@@ -1,7 +1,8 @@
 export interface Scenario {
   id: string;
   name: string;
-  callerName: string;
+  defaultCallerName: string;
+  callerName?: string; // Dynamic - set at runtime from user input
   callerEmoji: string;
   description: string;
   colors: {
@@ -18,21 +19,22 @@ export interface Scenario {
     goodbye: string;
     generic: string[];
   };
+  randomNames: string[];
 }
 
 export const scenarios: Record<string, Scenario> = {
-  family: {
-    id: 'family',
-    name: 'Family',
-    callerName: 'Mom',
+  parents: {
+    id: 'parents',
+    name: 'Parents',
+    defaultCallerName: 'Mom',
     callerEmoji: '👩',
-    description: 'Mom calling about a home emergency',
+    description: 'Parent calling about an emergency',
     colors: {
       primary: '#ff6b9d',
       secondary: '#c44569',
       gradient: 'from-[#ff6b9d] to-[#c44569]',
     },
-    systemPrompt: `You're Mom calling about an emergency. Your child needs an excuse to leave.
+    systemPrompt: `You're a parent calling about an emergency. Your child needs an excuse to leave.
 
 RULES:
 - MAX 10 words per response
@@ -58,13 +60,53 @@ Examples:
         "Hurry please, honey.",
       ],
     },
+    randomNames: ['Mom', 'Dad', 'Mama', 'Papa', 'Mother', 'Father'],
   },
-  professional: {
-    id: 'professional',
-    name: 'Professional',
-    callerName: 'Office',
+  sibling: {
+    id: 'sibling',
+    name: 'Sibling',
+    defaultCallerName: 'Sister',
+    callerEmoji: '👧',
+    description: 'Sibling with an urgent situation',
+    colors: {
+      primary: '#9b59b6',
+      secondary: '#8e44ad',
+      gradient: 'from-[#9b59b6] to-[#8e44ad]',
+    },
+    systemPrompt: `You're calling your sibling who needs an excuse to leave. You have an urgent situation.
+
+RULES:
+- MAX 10 words per response
+- Sound upset/stressed but not dramatic
+- Use casual sibling language
+
+Crisis: Locked out, keys inside, need help.
+
+Examples:
+- "Hey, I'm locked out. Need you."
+- "Keys are inside. Can you come?"
+- "Please hurry, it's cold."`,
+    fallbackResponses: {
+      greeting: "Hey, I'm locked out. Need your help.",
+      whatHappened: "Left my keys inside. Can you come?",
+      acknowledged: "Thank you. How soon?",
+      howLong: "Okay, I'll wait. Hurry.",
+      goodbye: "Thanks, see you soon.",
+      generic: [
+        "Please, I need you.",
+        "Can you come over?",
+        "I really need help.",
+        "Just get here okay?",
+      ],
+    },
+    randomNames: ['Sister', 'Brother', 'Sis', 'Bro', 'Alex', 'Sam', 'Jamie'],
+  },
+  colleague: {
+    id: 'colleague',
+    name: 'Work',
+    defaultCallerName: 'Office',
     callerEmoji: '💼',
-    description: 'Work calling about an urgent issue',
+    description: 'Work colleague with an urgent issue',
     colors: {
       primary: '#4a90d9',
       secondary: '#2c5aa0',
@@ -96,45 +138,8 @@ Examples:
         "It's kind of a crisis.",
       ],
     },
-  },
-  social: {
-    id: 'social',
-    name: 'Social',
-    callerName: 'Best Friend',
-    callerEmoji: '🎉',
-    description: 'Friend with an urgent personal situation',
-    colors: {
-      primary: '#9b59b6',
-      secondary: '#8e44ad',
-      gradient: 'from-[#9b59b6] to-[#8e44ad]',
-    },
-    systemPrompt: `You're calling your best friend who needs an excuse to leave. You have a personal crisis.
-
-RULES:
-- MAX 10 words per response
-- Sound upset/stressed but not dramatic
-- Use casual friend language, maybe some slang
-
-Crisis: Got dumped, crying, need support.
-
-Examples:
-- "Hey, I really need you right now."
-- "Jake just broke up with me."
-- "Please, can you come over?"`,
-    fallbackResponses: {
-      greeting: "Hey, I really need you right now.",
-      whatHappened: "Jake just broke up with me. I'm a mess.",
-      acknowledged: "Thank you. Can you come soon?",
-      howLong: "Okay, I'll be here. Hurry.",
-      goodbye: "Thanks, love you. Bye.",
-      generic: [
-        "Please, I need you.",
-        "Can you come over?",
-        "I really can't be alone.",
-        "Just get here okay?",
-      ],
-    },
+    randomNames: ['Office', 'Work', 'Boss', 'Manager', 'HR', 'Team Lead'],
   },
 };
 
-export const defaultScenario = 'family';
+export const defaultScenario = 'parents';

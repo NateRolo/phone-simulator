@@ -97,7 +97,7 @@ export function CallScreen({
                   className="text-2xl font-semibold text-white mb-2 cursor-default focus:outline-none"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  {scenario.callerName}
+                  {scenario.callerName || scenario.defaultCallerName}
                 </button>
                 <motion.p
                   style={{ color: scenario.colors.primary }}
@@ -156,7 +156,7 @@ export function CallScreen({
                   className="text-xl font-semibold text-white cursor-default focus:outline-none"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  {scenario.callerName}
+                  {scenario.callerName || scenario.defaultCallerName}
                 </button>
                 <p className="text-sm" style={{ color: scenario.colors.primary }}>
                   {formatDuration(state.duration)}
@@ -188,7 +188,7 @@ export function CallScreen({
                 >
                   <span className="text-[#888899]">
                     {state.currentSpeaker === 'receiver' 
-                      ? `${scenario.callerEmoji} ${scenario.callerName} speaking...` 
+                      ? `${scenario.callerEmoji} ${scenario.callerName || scenario.defaultCallerName} speaking...` 
                       : '🎤 You speaking...'}
                   </span>
                 </motion.div>

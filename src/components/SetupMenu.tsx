@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Clock, Zap, Lock, ChevronDown, Play } from 'lucide-react';
+import { Shuffle, ChevronDown, Clock, Bell, Save, User, Users, Briefcase } from 'lucide-react';
 import { AppConfig, IntensityLevel, TIMER_PRESETS } from '@/types/appConfig';
 import { scenarios, Scenario } from '@/config/scenarios';
 
@@ -14,6 +14,8 @@ interface SetupMenuProps {
   isLoadingVoices: boolean;
 }
 
+type TimerMode = 'duration' | 'alarm';
+
 export function SetupMenu({
   onStart,
   voices,
@@ -21,31 +23,70 @@ export function SetupMenu({
   onSelectVoice,
   isLoadingVoices,
 }: SetupMenuProps) {
+  // Form state
+  const [contactName, setContactName] = useState('');
+  const [selectedCaller, setSelectedCaller] = useState<string | null>(null);
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const [timerMode, setTimerMode] = useState<TimerMode>('duration');
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
+  const [alarmTime, setAlarmTime] = useState('');
+  const [planName, setPlanName] = useState('');
   const [intensity, setIntensity] = useState<IntensityLevel>('medium');
   const [safePin, setSafePin] = useState('');
-  const [scenarioId, setScenarioId] = useState('family');
-  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
-  const [pinError, setPinError] = useState('');
 
-  const scenarioList = Object.values(scenarios);
-  const currentScenario = scenarios[scenarioId];
+  const currentScenario = selectedCaller ? scenarios[selectedCaller] : null;
 
-  const handleStart = () => {
-    if (intensity === 'high' && safePin.length < 4) {
-      setPinError('PIN must be at least 4 digits');
-      return;
+  // Set default contact name when caller type is selected
+  useEffect(() => {
+    if (currentScenario && !contactName) {
+      setContactName(currentScenario.defaultCallerName);
+    }
+  }, [currentScenario, contactName]);
+
+  const handleRandomizeName = () => {
+    if (!currentScenario) return;
+    const names = currentScenario.randomNames;
+    const randomName = names[Math.floor(Math.random() * names.length)];
+    setContactName(randomName);
+  };
+
+  const calculateSecondsUntilAlarm = (): number => {
+    if (!alarmTime) return 60;
+    const [hours, minutes] = alarmTime.split(':').map(Number);
+    const now = new Date();
+    const alarm = new Date();
+    alarm.setHours(hours, minutes, 0, 0);
+    
+    // If alarm time has passed today, set for tomorrow
+    if (alarm <= now) {
+      alarm.setDate(alarm.getDate() + 1);
     }
     
+    return Math.floor((alarm.getTime() - now.getTime()) / 1000);
+  };
+
+  const handleSave = () => {
+    if (!selectedCaller) return;
+    
+    const seconds = timerMode === 'alarm' ? calculateSecondsUntilAlarm() : timerSeconds;
+    
     onStart({
-      timerSeconds: timerSeconds === 0 ? null : timerSeconds,
+      timerSeconds: seconds === 0 ? null : seconds,
       intensity,
       safePin,
-      scenarioId,
+      scenarioId: selectedCaller,
+      customCallerName: contactName || currentScenario?.defaultCallerName || 'Unknown',
+      planName: planName || undefined,
     });
   };
 
-  const canStart = intensity === 'medium' || (intensity === 'high' && safePin.length >= 4);
+  const canSave = selectedCaller !== null && selectedVoice !== '';
+
+  const callerOptions = [
+    { id: 'parents', label: 'Parents', icon: Users, emoji: '👨‍👩‍👧' },
+    { id: 'sibling', label: 'Sibling', icon: User, emoji: '👧' },
+    { id: 'colleague', label: 'Work', icon: Briefcase, emoji: '💼' },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#12121a] to-[#0a0a0f] flex items-center justify-center p-4">
@@ -56,162 +97,88 @@ export function SetupMenu({
         className="w-full max-w-md"
       >
         {/* Header */}
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#00ff88] to-[#00cc6a] flex items-center justify-center"
-          >
-            <Shield className="w-8 h-8 text-black" />
-          </motion.div>
-          <h1 className="text-2xl font-bold text-white mb-2">Escape Call</h1>
-          <p className="text-sm text-[#888899]">Your discreet exit strategy</p>
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-white mb-1">Setup Your Escape</h1>
+          <p className="text-sm text-[#888899]">Configure your fake call</p>
         </div>
 
-        {/* Setup Card */}
-        <div className="glass rounded-3xl p-6 space-y-6">
-          {/* Scenario Selection */}
+        {/* Settings Card */}
+        <div className="glass rounded-3xl p-6 space-y-5">
+          
+          {/* 1. Contact Name */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-white mb-3">
-              <span>📞</span> Who's calling?
+            <label className="block text-sm font-medium text-white mb-2">
+              Contact Name
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Enter name..."
+                className="flex-1 px-4 py-3 rounded-xl bg-[#2a2a3a] text-white placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50"
+              />
+              <motion.button
+                onClick={handleRandomizeName}
+                disabled={!selectedCaller}
+                className="px-4 py-3 rounded-xl bg-[#2a2a3a] text-[#888899] hover:text-white hover:bg-[#3a3a4a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                whileTap={{ scale: 0.95 }}
+                title="Randomize name"
+              >
+                <Shuffle className="w-5 h-5" />
+              </motion.button>
+            </div>
+          </div>
+
+          {/* 2. Who's Calling */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Who's calling?
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {scenarioList.map((scenario) => (
-                <button
-                  key={scenario.id}
-                  onClick={() => setScenarioId(scenario.id)}
-                  className={`p-3 rounded-xl text-center transition-all ${
-                    scenarioId === scenario.id
-                      ? 'ring-2'
-                      : 'bg-[#2a2a3a] hover:bg-[#3a3a4a]'
-                  }`}
-                  style={{
-                    backgroundColor: scenarioId === scenario.id 
-                      ? `${scenario.colors.primary}15` 
-                      : undefined,
-                    ringColor: scenarioId === scenario.id 
-                      ? scenario.colors.primary 
-                      : undefined,
-                  }}
-                >
-                  <span className="text-2xl">{scenario.callerEmoji}</span>
-                  <p className="text-xs text-white mt-1">{scenario.callerName}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Timer Selection */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-white mb-3">
-              <Clock className="w-4 h-4" style={{ color: currentScenario.colors.primary }} />
-              When should the call come in?
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {TIMER_PRESETS.map((preset) => (
-                <button
-                  key={preset.seconds}
-                  onClick={() => setTimerSeconds(preset.seconds)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    timerSeconds === preset.seconds
-                      ? 'text-black'
-                      : 'bg-[#2a2a3a] text-white hover:bg-[#3a3a4a]'
-                  }`}
-                  style={{
-                    backgroundColor: timerSeconds === preset.seconds 
-                      ? currentScenario.colors.primary 
-                      : undefined,
-                  }}
-                >
-                  {preset.seconds === 0 ? (
-                    <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> {preset.label}
+              {callerOptions.map((option) => {
+                const isSelected = selectedCaller === option.id;
+                const scenario = scenarios[option.id];
+                return (
+                  <motion.button
+                    key={option.id}
+                    onClick={() => {
+                      setSelectedCaller(option.id);
+                      setContactName(scenario.defaultCallerName);
+                    }}
+                    className={`p-4 rounded-xl text-center transition-all ${
+                      isSelected
+                        ? 'ring-2'
+                        : 'bg-[#2a2a3a] hover:bg-[#3a3a4a]'
+                    }`}
+                    style={{
+                      backgroundColor: isSelected ? `${scenario.colors.primary}15` : undefined,
+                      ringColor: isSelected ? scenario.colors.primary : undefined,
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="text-2xl block mb-1">{option.emoji}</span>
+                    <span className={`text-xs font-medium ${isSelected ? 'text-white' : 'text-[#888899]'}`}>
+                      {option.label}
                     </span>
-                  ) : (
-                    preset.label
-                  )}
-                </button>
-              ))}
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Intensity Selection */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-white mb-3">
-              <Zap className="w-4 h-4" style={{ color: currentScenario.colors.primary }} />
-              Intensity level
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setIntensity('medium')}
-                className={`p-4 rounded-xl text-left transition-all ${
-                  intensity === 'medium'
-                    ? 'ring-2 ring-[#00ff88] bg-[#00ff88]/10'
-                    : 'bg-[#2a2a3a] hover:bg-[#3a3a4a]'
-                }`}
-              >
-                <p className="text-sm font-medium text-white">Single Call</p>
-                <p className="text-xs text-[#888899] mt-1">One call, easy exit</p>
-              </button>
-              <button
-                onClick={() => setIntensity('high')}
-                className={`p-4 rounded-xl text-left transition-all ${
-                  intensity === 'high'
-                    ? 'ring-2 ring-[#ff6b6b] bg-[#ff6b6b]/10'
-                    : 'bg-[#2a2a3a] hover:bg-[#3a3a4a]'
-                }`}
-              >
-                <p className="text-sm font-medium text-white">Persistent</p>
-                <p className="text-xs text-[#888899] mt-1">Keeps calling until PIN</p>
-              </button>
-            </div>
-          </div>
-
-          {/* Safe PIN (only for high intensity) */}
-          <AnimatePresence>
-            {intensity === 'high' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <label className="flex items-center gap-2 text-sm font-medium text-white mb-3">
-                  <Lock className="w-4 h-4 text-[#ff6b6b]" />
-                  Safe PIN (to stop calls)
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={safePin}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setSafePin(value);
-                    setPinError('');
-                  }}
-                  placeholder="Enter 4-6 digit PIN"
-                  className="w-full px-4 py-3 rounded-xl bg-[#2a2a3a] text-white text-center text-lg tracking-widest font-mono placeholder:text-[#555] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]"
-                />
-                {pinError && (
-                  <p className="text-xs text-[#ff6b6b] mt-2">{pinError}</p>
-                )}
-                <p className="text-xs text-[#888899] mt-2">
-                  You'll need this PIN to stop the repeated calls
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Voice Selection */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-white mb-3">
-              🎙️ AI Voice
+          {/* 3. Voice Option */}
+          <div className={`transition-opacity ${!selectedCaller ? 'opacity-40 pointer-events-none' : ''}`}>
+            <label className="block text-sm font-medium text-white mb-2">
+              Voice
+              {!selectedCaller && (
+                <span className="text-xs text-[#555] ml-2">(select caller first)</span>
+              )}
             </label>
             <button
               onClick={() => setShowVoiceSelector(!showVoiceSelector)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#2a2a3a] hover:bg-[#3a3a4a] transition-colors"
+              disabled={!selectedCaller}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#2a2a3a] hover:bg-[#3a3a4a] transition-colors disabled:cursor-not-allowed"
             >
               <span className="text-sm text-white">
                 {isLoadingVoices
@@ -226,14 +193,14 @@ export function SetupMenu({
             </button>
 
             <AnimatePresence>
-              {showVoiceSelector && (
+              {showVoiceSelector && selectedCaller && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   className="mt-2 overflow-hidden"
                 >
-                  <div className="max-h-32 overflow-y-auto space-y-1 bg-[#1a1a24] rounded-xl p-2">
+                  <div className="max-h-40 overflow-y-auto space-y-1 bg-[#1a1a24] rounded-xl p-2">
                     {voices.map((voice) => (
                       <button
                         key={voice.id}
@@ -259,23 +226,105 @@ export function SetupMenu({
             </AnimatePresence>
           </div>
 
-          {/* Start Button */}
+          {/* 4. Time Until Ring */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Time until ring
+            </label>
+            
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setTimerMode('duration')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  timerMode === 'duration'
+                    ? 'bg-[#00ff88] text-black'
+                    : 'bg-[#2a2a3a] text-[#888899] hover:bg-[#3a3a4a]'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                Duration
+              </button>
+              <button
+                onClick={() => setTimerMode('alarm')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  timerMode === 'alarm'
+                    ? 'bg-[#00ff88] text-black'
+                    : 'bg-[#2a2a3a] text-[#888899] hover:bg-[#3a3a4a]'
+                }`}
+              >
+                <Bell className="w-4 h-4" />
+                Alarm
+              </button>
+            </div>
+
+            {/* Duration presets */}
+            {timerMode === 'duration' && (
+              <div className="flex flex-wrap gap-2">
+                {TIMER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.seconds}
+                    onClick={() => setTimerSeconds(preset.seconds)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      timerSeconds === preset.seconds
+                        ? 'bg-[#00ff88] text-black'
+                        : 'bg-[#2a2a3a] text-white hover:bg-[#3a3a4a]'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Alarm time picker */}
+            {timerMode === 'alarm' && (
+              <input
+                type="time"
+                value={alarmTime}
+                onChange={(e) => setAlarmTime(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-[#2a2a3a] text-white focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50 [color-scheme:dark]"
+              />
+            )}
+          </div>
+
+          {/* 5. Plan Name */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Plan Name
+              <span className="text-xs text-[#555] ml-2">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={planName}
+              onChange={(e) => setPlanName(e.target.value)}
+              placeholder="e.g., Date escape, Meeting bail..."
+              className="w-full px-4 py-3 rounded-xl bg-[#2a2a3a] text-white placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/50"
+            />
+          </div>
+
+          {/* 6. Save Button */}
           <motion.button
-            onClick={handleStart}
-            disabled={!canStart}
-            className="w-full py-4 rounded-xl font-semibold text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ backgroundColor: currentScenario.colors.primary }}
-            whileHover={{ scale: canStart ? 1.02 : 1 }}
-            whileTap={{ scale: canStart ? 0.98 : 1 }}
+            onClick={handleSave}
+            disabled={!canSave}
+            className="w-full py-4 rounded-xl font-semibold text-black bg-[#00ff88] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            whileHover={{ scale: canSave ? 1.02 : 1 }}
+            whileTap={{ scale: canSave ? 0.98 : 1 }}
           >
-            <Play className="w-5 h-5" />
-            {timerSeconds === 0 ? 'Start Now' : 'Arm & Wait'}
+            <Save className="w-5 h-5" />
+            SAVE
           </motion.button>
+
+          {!canSave && (
+            <p className="text-xs text-center text-[#ff6b6b]">
+              {!selectedCaller ? 'Please select who is calling' : 'Please select a voice'}
+            </p>
+          )}
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-[#555] mt-6">
-          Discreetly escape any situation
+        <p className="text-center text-xs text-[#555] mt-4">
+          Your escape is just a call away
         </p>
       </motion.div>
     </div>
